@@ -1,0 +1,79 @@
+clear all;
+close all;
+clc;
+
+global contador;
+
+load data.mat;
+
+VPLmin = 370000;
+VPLmax = 400000;
+penalty = 10^10;
+hp=16;
+numPrescriptions = 81;
+numFields = 416;
+
+
+numITER=1;
+
+%-- crit parada-- calculos de funcao
+numInd=50;
+numGer=1000;
+%-- crit parada-- temppo
+tempoMax = 360;
+
+%-- parametros AG--
+probMUT=0.01;
+probCRUZ=0.8;
+metSEL=1;  % 1 torneio  | 2 roleta       | 3 aleatório
+metCRUZ=1; % 1 1ponto   | 2 pontos
+metMUT=1;  % 1 swap     | 4 gene a gene
+metSUB=3;  % 1 elitista | 3 torneio      | 5 roleta
+
+
+histfitness=[];
+histfx=[];
+acumulado=[];
+histcont=[];
+qvalidos=[];
+
+
+
+for i=1:numITER
+     contador=0;
+     tempoInicial = cputime();
+     POP=randi([1,numPrescriptions],numInd,numFields); %gera população aleatória
+     [VPL,producaoPOP,~]=calcVPL(POP,data,VPLmin,VPLmax,penalty,hp);
+     maxFX=numInd*numGer;
+     numFX=numInd;
+     j=0;
+     tempoAtual = 0;
+    %while (numFX<maxFX) 
+    while (tempoAtual<tempoMax) 
+          j=j+1;
+          pais = metselecao(POP,VPL,metSEL);
+          filhos=metcruzamento(pais,probCRUZ,metCRUZ);
+          POPnovo=metmutacao(filhos,probMUT,metMUT);
+          [VPLnovo,P,ProdMelhor]=calcVPL(POPnovo,data,VPLmin,VPLmax,penalty,hp);
+          numFX=numFX+size(POPnovo,1);
+          [POP,VPL] = metsubstituicao(POP, POPnovo,VPL,VPLnovo,metSUB);
+          histfitness(end+1)=max(VPL);
+
+          %evitar excesso de calculos de função objetivo
+          % if (numFX+numInd)> maxFX
+          %      numFX=maxFX;
+          % end
+
+
+          tempoAtual = cputime() - tempoInicial  ;
+    end
+
+    [VPL,P,ProdMelhor,valido,vlpvalido] = calcVPLvalido(POP,data,VPLmin,VPLmax,penalty);
+      [qv,~]=size(valido)
+
+       resumoiter(i,1)=histfitness(end);
+       resumoiter(i,2)=numFX;
+       resumoiter(i,3)= tempoAtual;
+end
+mean(resumoiter)
+
